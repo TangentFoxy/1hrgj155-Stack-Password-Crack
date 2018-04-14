@@ -1,0 +1,9 @@
+#!/bin/bash
+
+moonc ./src
+./lp-build.sh
+source ./lp-config.sh
+
+butler push "$outputDir/$packageName-${version}_win32.zip" guard13007/stack-password-crack:win32 --userversion ${version}
+butler push "$outputDir/$packageName-${version}_osx.zip" guard13007/stack-password-crack:osx --userversion ${version}
+butler push "$outputDir/$packageName-${version}_linux.zip" guard13007/stack-password-crack:linux --userversion ${version}
