@@ -4,7 +4,7 @@ import random, min, floor from math
 
 Node = require "Node"
 
-local stack, w, h, password, first, debug
+local stack, w, h, password, first, debug, won, time, auto
 stackHeight = 21
 
 font = graphics.newFont "font/VeraMono.ttf", 20
@@ -14,8 +14,11 @@ graphics.setFont font
 string.random = (len) ->
   -- inspired by github.com/rxi/lume's uuid function
   fn = ->
-    r = random(26*2+10+10+20+3) - 1
-    return "1234567890!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-=_+[]{}\\|;:'\"/.,<>?`~ "\sub r, r
+    -- this version -> too many possible values
+    -- r = random(26*2+10+10+20+3) - 1
+    -- return "1234567890!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-=_+[]{}\\|;:'\"/.,<>?`~ "\sub r, r
+    r = random(26*2) - 1
+    return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"\sub r, r
   return "x"\rep(len)\gsub "x", fn
 
 class TrackedNode extends Node
@@ -74,6 +77,10 @@ class PasswordNode extends TrackedNode
         for x = 1, #checking.string
           if checking.string\sub(x, x) == @string\sub x, x
             @matched[x] = true
+
+    for value in *@matched
+      return unless value
+    won = true -- :D
 
     super dt
 
@@ -142,7 +149,7 @@ class StackNode extends TrackedNode
     super!
 
 love.load = ->
-  w = 5 + random 5
+  w = 3 + random 3
   h = stackHeight -- const level count for stack (last level is 'password' field)
 
   stack = {}
@@ -154,19 +161,38 @@ love.load = ->
 
   password = PasswordNode string: string.random w
 
+time = 0
 love.update = (dt) ->
-  first\update dt if first
+  if won
+    nil
+  else
+    time += dt
+    if auto and floor(time) % 2 == 1
+      love.keypressed "down"
+    first\update dt if first
 
 love.draw = ->
   first\draw! if first
 
+  graphics.setColor 1, 1, 1, 1
+  graphics.print "Crack da password!\nPress down arrow to pull more\nrandom memory onto the stack.", graphics.getWidth!/2, 0
+  graphics.print "Or turn on automatic mode with A", graphics.getWidth!/2, 150
+  graphics.print "Score: #{1000000 - time}", graphics.getWidth!/2, 200
+
+  if won
+    nil
+    -- TODO draw end screen!
+
 love.keypressed = (key) ->
   if key == "escape"
     love.event.quit!
+  if key == "a"
+    auto = not auto
   if key == "d"
     debug = not debug
   if key == "s" -- leaving in for testing
-    len = floor random! * w
+    -- len = 1 + floor random! * w
+    len = max w + 2, random! * 100
     for x = 1, len
       return false if stack[x][1]
     first\insert StackNode string: string.random len
