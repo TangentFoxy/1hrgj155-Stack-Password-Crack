@@ -17,8 +17,8 @@ string.random = (len) ->
     -- this version -> too many possible values
     -- r = random(26*2+10+10+20+3) - 1
     -- return "1234567890!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-=_+[]{}\\|;:'\"/.,<>?`~ "\sub r, r
-    r = random(26*2) - 1
-    return "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"\sub r, r
+    r = random(26) - 1
+    return "ABCDEFGHIJKLMNOPQRSTUVWXYZ"\sub r, r
   return "x"\rep(len)\gsub "x", fn
 
 class TrackedNode extends Node
@@ -180,8 +180,7 @@ love.draw = ->
   graphics.print "Score: #{1000000 - time}", graphics.getWidth!/2, 200
 
   if won
-    nil
-    -- TODO draw end screen!
+    graphics.print "YOU DONE A WIN", graphics.getWidth!/2, 300
 
 love.keypressed = (key) ->
   if key == "escape"
