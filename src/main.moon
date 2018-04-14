@@ -1,0 +1,129 @@
+math.randomseed os.time!
+import graphics from love
+import random, min, floor from math
+
+Node = require "Node"
+
+local stack, w, h, password, first, debug
+stackHeight = 21
+
+font = graphics.newFont "font/VeraMono.ttf", 20
+charWidth, charHeight = font\getWidth(" "), font\getHeight!
+graphics.setFont font
+
+string.random = (len) ->
+  -- inspired by github.com/rxi/lume's uuid function
+  fn = ->
+    r = random(26*2+10+10+20+3) - 1
+    return "1234567890!@#$%^&*()abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-=_+[]{}\\|;:'\"/.,<>?`~ "\sub r, r
+  return "x"\rep(len)\gsub "x", fn
+
+class TrackedNode extends Node
+  @notify: (node) =>
+    first = node
+
+  new: (opts={}) =>
+    super opts
+    @@notify(@) unless first -- requires outside knowledge, should not be handled by the class constructor anyhow
+
+  insert: (node) =>
+    @@notify node unless @previous
+    super node
+
+  remove: =>
+    @@notify(@next) unless @previous
+    super!
+
+class Password
+
+class StackNode extends TrackedNode
+  new: (opts={}) =>
+    super opts
+
+    @password = opts.password
+    @string = opts.string
+    @color = opts.color or {0.8, 0.8, 1, 1}
+
+    -- now add to stack (somewhere else we'll check for a full stack)
+    if @password
+      @x, @y = 0, (stackHeight - 1) * charHeight
+      @charX, @charY = 1, stackHeight
+    else
+      -- TODO fix that we are assuming we are at x == 1
+      @x, @y = 0, 0
+      @charX, @charY = 1, 1
+
+    -- TODO fix that we are assuming we are at x == 1
+    for x = 1, #@string
+      -- print x, #@string, stack, stack[x] -- it was generating StackNodes longer than the stack...
+      stack[x][@charY] = true -- take our place
+
+  update: (dt) =>
+    if @password
+      nil
+      -- TODO completely different logic
+    else
+      if @dropping
+        goal = @charY * charHeight
+        @y = min goal, @y + dt * 100
+        if @y >= goal
+          @dropping = false
+          for x = @charX, @charX + #@string - 1
+            stack[x][@charY] = false -- clear old position
+            -- stack[x][@charY + 1] = true -- claim new (already done!)
+          @charY += 1
+
+      drop = true
+      for x = @charX, @charX + #@string - 1
+        drop and= not stack[x][@charY + 1]
+      if drop
+        @dropping = true
+        for x = @charX, @charX + #@string - 1
+          stack[x][@charY + 1] = true -- claim new space before dropping into it
+
+    @next\update dt if @next
+
+  draw: =>
+    graphics.setColor(@color)
+    graphics.rectangle "line", @x, @y, #@string * charWidth, charHeight
+    if not @password or debug
+      graphics.print @string, @x, @y
+
+    @next\draw! if @next
+
+love.load = ->
+  w = 5 + random 5
+  h = stackHeight -- const level count for stack (last level is 'password' field)
+
+  stack = {}
+  for x = 1, w
+    stack[x] = {}
+    for y = 1, h
+      stack[x][y] = false -- stack just stores bool 'taken' spots
+
+  password = StackNode password: true, string: string.random w
+
+love.update = (dt) ->
+  first\update dt if first
+
+love.draw = ->
+  first\draw! if first
+
+love.keypressed = (key) ->
+  if key == "escape"
+    love.event.quit!
+  if key == "d"
+    debug = not debug
+  if key == "s"
+    len = floor random! * w
+    for x = 1, len
+      return false if stack[x][1]
+    first\insert StackNode string: string.random len
+    -- node = StackNode string: string.random floor random! * w
+    -- available = true
+    -- for x = 1, #node.string
+    --   available and= not stack[x][1]
+    -- if available
+    --   print "yay"
+    --   first\insert node
+    --   -- this is not working for some reason
