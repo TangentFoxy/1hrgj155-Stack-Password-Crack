@@ -175,7 +175,7 @@ love.draw = ->
   first\draw! if first
 
   graphics.setColor 1, 1, 1, 1
-  graphics.print "Crack da password!\nPress down arrow to pull more\nrandom memory onto the stack.", graphics.getWidth!/2, 0
+  graphics.print "\nCrack da password!\n\nPress down arrow to pull more\nrandom memory onto the stack.", graphics.getWidth!/2, 0
   graphics.print "Or turn on automatic mode with A", graphics.getWidth!/2, 150
   graphics.print "Score: #{1000000 - time}", graphics.getWidth!/2, 200
 
@@ -191,7 +191,9 @@ love.keypressed = (key) ->
     debug = not debug
   if key == "s" -- leaving in for testing
     -- len = 1 + floor random! * w
-    len = max w + 2, random! * 100
+    -- len = max w + 2, random! * 100
+    -- len = #password.string
+    len = 1 -- fuck me ...
     for x = 1, len
       return false if stack[x][1]
     first\insert StackNode string: string.random len
@@ -209,7 +211,8 @@ love.keypressed = (key) ->
       checking\remove!
 
     -- copy-pasted from above, sue me
-    len = floor random! * w
+    -- len = floor random! * w
+    len = #password.string
     for x = 1, len
       return false if stack[x][1]
     first\insert StackNode string: string.random len
