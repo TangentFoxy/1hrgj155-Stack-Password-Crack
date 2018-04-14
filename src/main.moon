@@ -2,6 +2,7 @@ math.randomseed os.time!
 import graphics from love
 import random, min, floor from math
 
+gamejolt = require "lib.gamejolt.gamejolt"
 Node = require "Node"
 
 local stack, w, h, password, first, debug, won, time, auto
@@ -81,6 +82,10 @@ class PasswordNode extends TrackedNode
     for value in *@matched
       return unless value
     won = true -- :D
+    gamejolt.init "333438", "06a1b9fe4649cd92f22ba7a920db208c"
+    -- gamejolt.openSession!
+    -- score, description, tableID, guestName, extraData
+    gamejolt.addScore 1000000 - time, "points*", nil, password.string, "automatic-name"
 
     super dt
 
