@@ -34,62 +34,112 @@ class TrackedNode extends Node
     @@notify(@next) unless @previous
     super!
 
-class Password
+  update: (dt) =>
+    @next\update dt if @next
+
+  draw: =>
+    @next\draw! if @next
+
+class PasswordNode extends TrackedNode
+  new: (opts={}) =>
+    super opts
+
+    @string = opts.string
+    @matched = {}
+    for x = 1, #@string
+      @matched[x] = false
+    @color = opts.color or {
+      unmatched: {1, 1/3, 1/3, 1}
+      matched: {0.25, 1, 0.25, 1}
+    }
+
+    -- these values are based on it previously taking the last space on the stack
+    @x, @y = 0, (stackHeight - 1) * charHeight
+    @charX, @charY = 1, stackHeight
+
+  update: (dt) =>
+    -- TODO check if space above us has string w matching pieces of our string
+    if stack[1][@charY - 1]
+      -- FIND IT
+      -- for now, gonna be lazy because I know password is last in the stack
+      --                                        (and all StackNodes start at 1)
+      checking = @previous
+      while checking
+        if (not checking.dropping) and checking.charY == @charY - 1 -- if right above us (and done falling)
+          break
+        else
+          checking = checking.previous
+
+      if checking -- if we've found one
+        for x = 1, #checking.string
+          if checking.string\sub(x, x) == @string\sub x, x
+            @matched[x] = true
+
+    super dt
+
+  draw: =>
+    for x = 1, #@string
+      graphics.setColor(@matched[x] and @color.matched or @color.unmatched)
+      graphics.rectangle "line", (x - 1) * charWidth, @y, charWidth, charHeight
+      if @matched[x]
+        graphics.print @string\sub(x, x), (x - 1) * charWidth, @y
+
+    if debug
+      graphics.setColor 1, 1, 1, 1
+      graphics.print @string, @x, @y
+
+    super!
 
 class StackNode extends TrackedNode
   new: (opts={}) =>
     super opts
 
-    @password = opts.password
     @string = opts.string
     @color = opts.color or {0.8, 0.8, 1, 1}
 
-    -- now add to stack (somewhere else we'll check for a full stack)
-    if @password
-      @x, @y = 0, (stackHeight - 1) * charHeight
-      @charX, @charY = 1, stackHeight
-    else
-      -- TODO fix that we are assuming we are at x == 1
-      @x, @y = 0, 0
-      @charX, @charY = 1, 1
+    -- TODO fix that we are assuming we are at x == 1
+    @x, @y = 0, 0
+    @charX, @charY = 1, 1
 
     -- TODO fix that we are assuming we are at x == 1
     for x = 1, #@string
       -- print x, #@string, stack, stack[x] -- it was generating StackNodes longer than the stack...
       stack[x][@charY] = true -- take our place
 
+  remove: =>
+    -- AGHHH
+    for x = @charX, @charX + #@string - 1
+      stack[x][@charY] = false -- we aren't here anymore!
+
+    super!
+
   update: (dt) =>
-    if @password
-      nil
-      -- TODO completely different logic
-    else
-      if @dropping
-        goal = @charY * charHeight
-        @y = min goal, @y + dt * 100
-        if @y >= goal
-          @dropping = false
-          for x = @charX, @charX + #@string - 1
-            stack[x][@charY] = false -- clear old position
-            -- stack[x][@charY + 1] = true -- claim new (already done!)
-          @charY += 1
-
-      drop = true
-      for x = @charX, @charX + #@string - 1
-        drop and= not stack[x][@charY + 1]
-      if drop
-        @dropping = true
+    if @dropping
+      goal = @charY * charHeight
+      @y = min goal, @y + dt * 100
+      if @y >= goal
+        @dropping = false
         for x = @charX, @charX + #@string - 1
-          stack[x][@charY + 1] = true -- claim new space before dropping into it
+          stack[x][@charY] = false -- clear old position
+          -- stack[x][@charY + 1] = true -- claim new (already done!)
+        @charY += 1
 
-    @next\update dt if @next
+    drop = true
+    for x = @charX, @charX + #@string - 1
+      drop and= not stack[x][@charY + 1]
+    if drop
+      @dropping = true
+      for x = @charX, @charX + #@string - 1
+        stack[x][@charY + 1] = true -- claim new space before dropping into it
+
+    super dt
 
   draw: =>
     graphics.setColor(@color)
     graphics.rectangle "line", @x, @y, #@string * charWidth, charHeight
-    if not @password or debug
-      graphics.print @string, @x, @y
+    graphics.print @string, @x, @y
 
-    @next\draw! if @next
+    super!
 
 love.load = ->
   w = 5 + random 5
@@ -98,10 +148,11 @@ love.load = ->
   stack = {}
   for x = 1, w
     stack[x] = {}
-    for y = 1, h
+    for y = 1, h - 1
       stack[x][y] = false -- stack just stores bool 'taken' spots
+    stack[x][h] = true -- last row is 'taken' by nothing
 
-  password = StackNode password: true, string: string.random w
+  password = PasswordNode string: string.random w
 
 love.update = (dt) ->
   first\update dt if first
@@ -114,16 +165,26 @@ love.keypressed = (key) ->
     love.event.quit!
   if key == "d"
     debug = not debug
-  if key == "s"
+  if key == "s" -- leaving in for testing
     len = floor random! * w
     for x = 1, len
       return false if stack[x][1]
     first\insert StackNode string: string.random len
-    -- node = StackNode string: string.random floor random! * w
-    -- available = true
-    -- for x = 1, #node.string
-    --   available and= not stack[x][1]
-    -- if available
-    --   print "yay"
-    --   first\insert node
-    --   -- this is not working for some reason
+  if key == "down"
+    checking = first
+    while checking
+      -- print checking.charY, stackHeight
+      if (not checking.dropping) and checking.charY == stackHeight - 1
+        break
+      else
+        checking = checking.next
+
+    -- print "done checking"
+    if checking -- if there's something to remove
+      checking\remove!
+
+    -- copy-pasted from above, sue me
+    len = floor random! * w
+    for x = 1, len
+      return false if stack[x][1]
+    first\insert StackNode string: string.random len
